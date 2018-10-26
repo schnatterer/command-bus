@@ -1,6 +1,4 @@
 #!groovy
-@Library('github.com/cloudogu/ces-build-lib@24c4f03')
-import com.cloudogu.ces.cesbuildlib.*
 
 properties([
   // Keep only the most recent builds in order to preserve space
@@ -11,13 +9,19 @@ properties([
 
 node {
 
-  Maven mvn = new MavenWrapper(this)
-  Git git = new Git(this)
+  def library
+  def mvn
+  def git
 
   catchError {
 
     stage('Checkout') {
       checkout scm
+
+      library = loadLocalLib('ces-build-lib').com.cloudogu.ces.cesbuildlib
+      mvn = library.MavenWrapper.new(this)
+      git = library.Git.new(this)
+
       git.clean('')
     }
 
@@ -37,7 +41,7 @@ node {
     }
 
     stage('Static Code Analysis') {
-      def sonarQube = new SonarCloud(this, [sonarQubeEnv: 'sonarcloud.io-cloudogu'])
+      def sonarQube = library.SonarCloud.new(this, [sonarQubeEnv: 'sonarcloud.io-cloudogu'])
 
       sonarQube.analyzeWith(mvn)
 
@@ -53,7 +57,7 @@ node {
                                      credentialsId: 'mavenCentral-acccessToken', type: 'Nexus2'])
 
         mvn.setSignatureCredentials('mavenCentral-secretKey-asc-file',
-          'mavenCentral-secretKey-Passphrase')
+                                    'mavenCentral-secretKey-Passphrase')
 
         mvn.deployToNexusRepositoryWithStaging()
       }
@@ -70,10 +74,18 @@ node {
   mailIfStatusChanged(git.commitAuthorEmail)
 }
 
+void loadLocalLib(String path) {
+  // create new git repo inside jenkins subdirectory
+  dir(path) {
+    sh('git init && git config user.name "Your Name" && git config user.email "you@example.com" && git add --all . && git commit -m init &> /dev/null')
+    library identifier: 'local-lib@master', retriever: modernSCM([$class: 'GitSCMSource', remote: pwd()]), changelog: false
+  }
+}
+
 boolean preconditionsForDeploymentFulfilled() {
   if (isBuildSuccessful() &&
-    !isPullRequest() &&
-    shouldBranchBeDeployed()) {
+      !isPullRequest() &&
+      shouldBranchBeDeployed()) {
     return true
   } else {
     echo "Skipping deployment because of branch or build result: currentResult=${currentBuild.currentResult}, " +
@@ -92,7 +104,7 @@ private boolean isBuildSuccessful() {
     (currentBuild.result == null || currentBuild.result == 'SUCCESS')
 }
 
-void initMaven(Maven mvn) {
+void initMaven(mvn) {
 
   if ("master".equals(env.BRANCH_NAME)) {
 

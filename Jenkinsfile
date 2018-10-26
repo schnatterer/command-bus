@@ -53,7 +53,7 @@ node {
                                      credentialsId: 'mavenCentral-acccessToken', type: 'Nexus2'])
 
         mvn.setSignatureCredentials('mavenCentral-secretKey-asc-file',
-                                    'mavenCentral-secretKey-Passphrase')
+          'mavenCentral-secretKey-Passphrase')
 
         mvn.deployToNexusRepositoryWithStaging()
       }
@@ -72,8 +72,8 @@ node {
 
 boolean preconditionsForDeploymentFulfilled() {
   if (isBuildSuccessful() &&
-      !isPullRequest() &&
-      shouldBranchBeDeployed()) {
+    !isPullRequest() &&
+    shouldBranchBeDeployed()) {
     return true
   } else {
     echo "Skipping deployment because of branch or build result: currentResult=${currentBuild.currentResult}, " +
